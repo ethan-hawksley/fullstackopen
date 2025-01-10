@@ -1,10 +1,13 @@
 import {useEffect, useState} from 'react'
-import axios from "axios";
+import phoneService from './services/phonebook'
 
 
-const Person = ({person}) => {
+const Person = ({person, number, personId, onClick}) => {
     return (
-        <li>{person}</li>
+        <li>
+            {person} {number}
+            <button id={personId} onClick={() => onClick(personId, person)}>delete</button>
+        </li>
     )
 }
 
@@ -34,46 +37,74 @@ const PersonForm = ({onSubmit, newName, onNameChange, newNumber, onNumberChange}
     )
 }
 
-const Persons = ({persons, filter}) => {
+const Persons = ({persons, filter, onDelete}) => {
     return (
         <ul>
             {persons
                 .filter((person) => person.name.toLowerCase().includes(filter.toLowerCase()))
-                .map((person) => <Person key={person.id} person={`${person.name} ${person.number}`}/>)}
+                .map((person) => <Person key={person.id} person={person.name} number={person.number}
+                                         personId={person.id}
+                                         onClick={onDelete}/>)}
         </ul>
     )
 }
 
 const App = () => {
-    const [persons, setPersons] = useState([])
+    const [persons, setPersons] = useState([]);
+    const [newName, setNewName] = useState('')
+    const [newNumber, setNewNumber] = useState('')
+    const [filter, setNewFilter] = useState('')
     useEffect(() => {
-        console.log('effect')
-        axios
-            .get('http://localhost:3001/persons')
+        phoneService.getAll()
             .then(response => {
-                console.log('promise fulfilled')
-                setPersons(response.data)
+                setPersons(response)
             })
     }, [])
     console.log('render', persons.length, 'notes')
 
-    const [newName, setNewName] = useState('')
-    const [newNumber, setNewNumber] = useState('')
-    const [filter, setNewFilter] = useState('')
 
     const addPerson = (event) => {
         event.preventDefault()
+        if (newName === '') return
         const person = {
             name: newName,
             number: newNumber,
-            id: persons.length
+            id: persons.length === 0 ? '1' : (Number(persons[persons.length - 1].id) + 1).toString()
         }
         if (persons.reduce((found, x) => found || x.name === newName, false)) {
-            alert(`${person.name} is already added to phonebook`)
+            if (confirm(`${newName} is already added to phonebook, replace the old number with a new one?`)) {
+                phoneService
+                    .update(persons.find((i) => i.name === newName).id, person)
+                    .then(returnedPerson => {
+                        console.log(returnedPerson)
+                        setPersons(persons.map((i) => {
+                            return i.name === returnedPerson.name ?
+                                returnedPerson :
+                                i
+                        }))
+                    })
+            }
         } else {
-            setPersons(persons.concat(person))
-            setNewName('')
-            setNewNumber('')
+            phoneService
+                .create(person)
+                .then(returnedPerson => {
+                    setPersons(persons.concat(returnedPerson))
+                    setNewName('')
+                    setNewNumber('')
+                })
+        }
+    }
+
+    const deletePerson = (personId, name) => {
+        console.log(personId)
+        if (confirm(`Delete ${name}?`)) {
+            phoneService
+                .deleteItem(personId)
+                .then((returnedPerson => {
+                    console.log(returnedPerson)
+                    console.log(persons)
+                    setPersons(persons.filter((i) => i.id !== returnedPerson.id))
+                }))
         }
     }
 
@@ -106,7 +137,7 @@ const App = () => {
             />
 
             <h3>Numbers</h3>
-            <Persons persons={persons} filter={filter} />
+            <Persons persons={persons} filter={filter} onDelete={deletePerson}/>
         </div>
     )
 }
