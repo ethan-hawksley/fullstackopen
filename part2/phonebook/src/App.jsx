@@ -1,59 +1,18 @@
 import {useEffect, useState} from 'react'
 import phoneService from './services/phonebook'
-
-
-const Person = ({person, number, personId, onClick}) => {
-    return (
-        <li>
-            {person} {number}
-            <button id={personId} onClick={() => onClick(personId, person)}>delete</button>
-        </li>
-    )
-}
-
-const Filter = ({filter, onChange}) => {
-    return (
-        <div>
-            filter shown with <input value={filter} onChange={onChange}/>
-        </div>
-    )
-}
-
-const PersonForm = ({onSubmit, newName, onNameChange, newNumber, onNumberChange}) => {
-    return (
-        <div>
-            <form onSubmit={onSubmit}>
-                <div>
-                    name: <input value={newName} onChange={onNameChange}/>
-                </div>
-                <div>
-                    number: <input value={newNumber} onChange={onNumberChange}/>
-                </div>
-                <div>
-                    <button type="submit">add</button>
-                </div>
-            </form>
-        </div>
-    )
-}
-
-const Persons = ({persons, filter, onDelete}) => {
-    return (
-        <ul>
-            {persons
-                .filter((person) => person.name.toLowerCase().includes(filter.toLowerCase()))
-                .map((person) => <Person key={person.id} person={person.name} number={person.number}
-                                         personId={person.id}
-                                         onClick={onDelete}/>)}
-        </ul>
-    )
-}
+import PersonForm from "./components/PersonForm"
+import Persons from "./components/Persons.jsx";
+import Filter from "./components/Filter.jsx";
+import Notification from "./components/Notification.jsx";
 
 const App = () => {
     const [persons, setPersons] = useState([]);
     const [newName, setNewName] = useState('')
     const [newNumber, setNewNumber] = useState('')
     const [filter, setNewFilter] = useState('')
+    const [errorMessage, setErrorMessage] = useState(null)
+    const [successMessage, setSuccessMessage] = useState(null)
+
     useEffect(() => {
         phoneService.getAll()
             .then(response => {
@@ -82,6 +41,10 @@ const App = () => {
                                 returnedPerson :
                                 i
                         }))
+                        setSuccessMessage(`Updated ${person.name}`)
+                        setTimeout(() => {
+                            setSuccessMessage(null)
+                        }, 5000)
                     })
             }
         } else {
@@ -91,6 +54,10 @@ const App = () => {
                     setPersons(persons.concat(returnedPerson))
                     setNewName('')
                     setNewNumber('')
+                    setSuccessMessage(`Added ${person.name}`)
+                    setTimeout(() => {
+                        setSuccessMessage(null)
+                    }, 5000)
                 })
         }
     }
@@ -104,6 +71,10 @@ const App = () => {
                     console.log(returnedPerson)
                     console.log(persons)
                     setPersons(persons.filter((i) => i.id !== returnedPerson.id))
+                    setSuccessMessage(`Deleted ${name}`)
+                    setTimeout(() => {
+                        setSuccessMessage(null)
+                    }, 5000)
                 }))
         }
     }
@@ -126,6 +97,8 @@ const App = () => {
     return (
         <div>
             <h2>Phonebook</h2>
+            <Notification message={errorMessage} type='error'/>
+            <Notification message={successMessage} type='success'/>
             <Filter filter={filter} onChange={handleFilterChange}/>
             <h3>add a new</h3>
             <PersonForm
